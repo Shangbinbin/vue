@@ -1,11 +1,6 @@
 machine:
   node:
-    version: 4
-
-general:
-  branches:
-    ignore:
-      - dev
+    version: 5
 
 test:
   override:
