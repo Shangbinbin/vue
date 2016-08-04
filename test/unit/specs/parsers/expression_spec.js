@@ -5,7 +5,7 @@ var testCases = [
     // simple path
     exp: 'a.b.d',
     scope: {
-      a: {b: {d: 123}}
+      a: { b: { d: 123 }}
     },
     expected: 123,
     paths: ['a']
@@ -14,7 +14,7 @@ var testCases = [
   {
     exp: 'a["b"].c',
     scope: {
-      a: {b: {c: 234}}
+      a: { b: { c: 234 }}
     },
     expected: 234,
     paths: ['a']
@@ -68,6 +68,18 @@ var testCases = [
     expected: { a: '35', b: 32 }
   },
   {
+    // Object with string values with back-quotes
+    exp: '[{"a":"he`llo"},{"b":"world"},{"c":55}]',
+    scope: {},
+    expected: [{ 'a': 'he`llo'}, { 'b': 'world'}, { 'c': 55}]
+  },
+  {
+    // Object with string values and back quotes (single quoted string)
+    exp: '[{\'a\':\'he`llo\'},{\'b\':\'world\'},{\'c\':55}]',
+    scope: {},
+    expected: [{ 'a': 'he`llo'}, { 'b': 'world'}, { 'c': 55}]
+  },
+  {
     // dollar signs and underscore
     exp: "_a + ' ' + $b",
     scope: {
@@ -108,15 +120,15 @@ var testCases = [
   },
   {
     // expressions with inline object literals
-    exp: "sortRows({ column: 'name', test: haha, durrr: 123 })",
+    exp: "sortRows({ column: 'name', test: foo, durrr: 123 })",
     scope: {
       sortRows: function (params) {
         return params.column + params.test + params.durrr
       },
-      haha: 'hoho'
+      foo: 'bar'
     },
-    expected: 'namehoho123',
-    paths: ['sortRows', 'haha']
+    expected: 'namebar123',
+    paths: ['sortRows', 'bar']
   },
   {
     // space between path segments
@@ -178,7 +190,7 @@ var testCases = [
     scope: {
       c: '\'c'
     },
-    expected: "a\'b\'c",
+    expected: "a'b'c",
     paths: ['c']
   },
   {
@@ -219,6 +231,18 @@ var testCases = [
     paths: []
   },
   {
+    exp: 'null',
+    scope: {},
+    expected: null,
+    paths: []
+  },
+  {
+    exp: 'undefined',
+    scope: { undefined: 1 },
+    expected: undefined,
+    paths: []
+  },
+  {
     // Date global
     exp: 'Date.now() > new Date("2000-01-01")',
     scope: {},
@@ -249,7 +273,6 @@ var testCases = [
 ]
 
 describe('Expression Parser', function () {
-
   testCases.forEach(function (testCase) {
     it('parse getter: ' + testCase.exp, function () {
       var res = expParser.parseExpression(testCase.exp, true)
@@ -287,28 +310,44 @@ describe('Expression Parser', function () {
     expect(res1).toBe(res2)
   })
 
-  describe('invalid expression', function () {
-
-    beforeEach(function () {
-      spyWarns()
+  if (canMakeTemplateStringFunction()) {
+    it('ES2015 template string handling', function () {
+      var res = expParser.parseExpression('a + `hi ${ b }` + c')
+      expect(res.get.toString().indexOf('scope.a+`hi ${scope.b}`+scope.c') > -1).toBe(true)
+      res = expParser.parseExpression('`hi ${ b + `${ d }` }`')
+      expect(res.get.toString().indexOf('`hi ${scope.b+`${scope.d}`}`') > -1).toBe(true)
+      res = expParser.parseExpression('{transform:`rotate(${x}deg)`}')
+      expect(res.get.toString().indexOf('{transform:`rotate(${scope.x}deg)`}') > -1).toBe(true)
     })
+  }
 
+  describe('invalid expression', function () {
     it('should warn on invalid expression', function () {
       expect(getWarnCount()).toBe(0)
       expParser.parseExpression('a--b"ffff')
-      expect(hasWarned('Invalid expression')).toBe(true)
+      expect('Invalid expression').toHaveBeenWarned()
     })
 
     it('should warn on invalid setter expression', function () {
       expect(getWarnCount()).toBe(0)
       expParser.parseExpression('a+b', true)
-      expect(hasWarned('Invalid setter expression')).toBe(true)
+      expect('Invalid setter expression').toHaveBeenWarned()
     })
 
     it('should warn if expression contains improper reserved keywords', function () {
       expect(getWarnCount()).toBe(0)
       expParser.parseExpression('break + 1')
-      expect(hasWarned('Avoid using reserved keywords')).toBe(true)
+      expect('Avoid using reserved keywords').toHaveBeenWarned()
     })
   })
 })
+
+function canMakeTemplateStringFunction () {
+  try {
+    /* eslint-disable no-new-func */
+    new Function('a', 'return `${a}`')
+  } catch (e) {
+    return false
+  }
+  return true
+}

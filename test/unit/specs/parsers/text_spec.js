@@ -5,7 +5,7 @@ var config = require('src/config')
 var testCases = [
   {
     // no tags
-    text: 'haha',
+    text: 'foo',
     expected: null
   },
   {
@@ -49,6 +49,22 @@ var testCases = [
     expected: [
       { tag: true, value: 'value', html: false, oneTime: false }
     ]
+  },
+  // multiline HTML
+  {
+    text: '{{{\n code \n}}}',
+    expected: [
+      { tag: true, value: 'code', html: true, oneTime: false }
+    ]
+  },
+  // new lines preserved outside of tags
+  {
+    text: 'hello\n{{value}}\nworld',
+    expected: [
+        { value: 'hello\n' },
+        { tag: true, value: 'value', html: false, oneTime: false },
+        { value: '\nworld' }
+    ]
   }
 ]
 
@@ -69,7 +85,6 @@ function assertParse (test) {
 }
 
 describe('Text Parser', function () {
-
   it('parse', function () {
     testCases.forEach(assertParse)
   })
@@ -118,5 +133,4 @@ describe('Text Parser', function () {
         JSON.stringify(filters) +
       ',false)+" e"')
   })
-
 })

@@ -34,13 +34,11 @@ function updateSelect (el, value) {
 }
 
 describe('v-model', function () {
-
   var el
   beforeEach(function () {
     el = document.createElement('div')
     el.style.display = 'none'
     document.body.appendChild(el)
-    spyWarns()
   })
 
   it('radio buttons', function (done) {
@@ -187,11 +185,13 @@ describe('v-model', function () {
     el.firstChild.click()
     expect(vm.list.length).toBe(2)
     expect(vm.list[1]).toBe(1)
-    vm.list = [vm.a]
     _.nextTick(function () {
-      expect(el.firstChild.checked).toBe(false)
-      expect(el.lastChild.checked).toBe(true)
-      done()
+      vm.list = [vm.a]
+      _.nextTick(function () {
+        expect(el.firstChild.checked).toBe(false)
+        expect(el.lastChild.checked).toBe(true)
+        done()
+      })
     })
   })
 
@@ -237,7 +237,7 @@ describe('v-model', function () {
     })
   })
 
-  it('select persist non-selected on append', function () {
+  it('select persist non-selected on append', function (done) {
     var vm = new Vue({
       el: el,
       data: {
@@ -251,12 +251,17 @@ describe('v-model', function () {
           '<option>c</option>' +
         '</select>'
     })
-    expect(vm.$el.value).toBe('')
-    expect(vm.$el.selectedIndex).toBe(-1)
-    vm.$remove()
-    vm.$appendTo(document.body)
-    expect(vm.$el.value).toBe('')
-    expect(vm.$el.selectedIndex).toBe(-1)
+    _.nextTick(function () {
+      expect(vm.$el.value).toBe('')
+      expect(vm.$el.selectedIndex).toBe(-1)
+      vm.$remove()
+      vm.$appendTo(document.body)
+      _.nextTick(function () {
+        expect(vm.$el.value).toBe('')
+        expect(vm.$el.selectedIndex).toBe(-1)
+        done()
+      })
+    })
   })
 
   it('select template default value', function () {
@@ -500,6 +505,7 @@ describe('v-model', function () {
     _.nextTick(function () {
       expect(el.firstChild.value).toBe('cc')
       expect(vm.test).toBe('cc')
+      trigger(el.firstChild, 'change')
       trigger(el.firstChild, 'blur')
       _.nextTick(function () {
         expect(el.firstChild.value).toBe('CC')
@@ -530,6 +536,7 @@ describe('v-model', function () {
     _.nextTick(function () {
       expect(el.firstChild.value).toBe('cc')
       expect(vm.test).toBe('CC')
+      trigger(el.firstChild, 'change')
       trigger(el.firstChild, 'blur')
       _.nextTick(function () {
         expect(el.firstChild.value).toBe('CC')
@@ -559,15 +566,15 @@ describe('v-model', function () {
     var vm = new Vue({
       el: el,
       data: {
-        test: 'aaa'
+        test: 'foo'
       },
       template: '<input v-model="test">'
     })
     var input = el.firstChild
-    input.value = 'aa'
+    input.value = 'bar'
     trigger(input, 'cut')
     _.nextTick(function () {
-      expect(vm.test).toBe('aa')
+      expect(vm.test).toBe('bar')
       input.value = 'a'
       trigger(input, 'keyup', function (e) {
         e.keyCode = 8
@@ -575,7 +582,7 @@ describe('v-model', function () {
       expect(vm.test).toBe('a')
       // teardown
       vm._directives[0]._teardown()
-      input.value = 'bbb'
+      input.value = 'bar'
       trigger(input, 'keyup', function (e) {
         e.keyCode = 8
       })
@@ -590,8 +597,8 @@ describe('v-model', function () {
       var vm = new Vue({
         el: el,
         data: {
-          test: 'aaa',
-          test2: 'bbb'
+          test: 'foo',
+          test2: 'bar'
         },
         template: '<input v-model="test"><input v-model="test2 | uppercase">'
       })
@@ -599,19 +606,19 @@ describe('v-model', function () {
       var input2 = el.childNodes[1]
       trigger(input, 'compositionstart')
       trigger(input2, 'compositionstart')
-      input.value = input2.value = 'ccc'
+      input.value = input2.value = 'baz'
       // input before composition unlock should not call set
       trigger(input, 'input')
       trigger(input2, 'input')
-      expect(vm.test).toBe('aaa')
-      expect(vm.test2).toBe('bbb')
+      expect(vm.test).toBe('foo')
+      expect(vm.test2).toBe('bar')
       // after composition unlock it should work
       trigger(input, 'compositionend')
       trigger(input2, 'compositionend')
       trigger(input, 'input')
       trigger(input2, 'input')
-      expect(vm.test).toBe('ccc')
-      expect(vm.test2).toBe('ccc')
+      expect(vm.test).toBe('baz')
+      expect(vm.test2).toBe('baz')
       // IE complains about "unspecified error" when calling
       // setSelectionRange() on an input element that's been
       // removed from the DOM, so we wait until the
@@ -624,13 +631,13 @@ describe('v-model', function () {
     var vm = new Vue({
       el: el,
       data: {
-        test: 'b',
-        b: 'BB'
+        test: 'foo',
+        b: 'bar'
       },
-      template: '<textarea v-model="test">a {{b}} c</textarea>'
+      template: '<textarea v-model="test">foo {{b}} baz</textarea>'
     })
-    expect(vm.test).toBe('a BB c')
-    expect(el.firstChild.value).toBe('a BB c')
+    expect(vm.test).toBe('foo bar baz')
+    expect(el.firstChild.value).toBe('foo bar baz')
   })
 
   it('warn invalid tag', function () {
@@ -638,7 +645,7 @@ describe('v-model', function () {
       el: el,
       template: '<div v-model="test"></div>'
     })
-    expect(hasWarned('does not support element type')).toBe(true)
+    expect('does not support element type').toHaveBeenWarned()
   })
 
   it('warn read-only filters', function () {
@@ -651,7 +658,7 @@ describe('v-model', function () {
         }
       }
     })
-    expect(hasWarned('read-only filter')).toBe(true)
+    expect('read-only filter').toHaveBeenWarned()
   })
 
   it('support jQuery change event', function (done) {
@@ -713,7 +720,8 @@ describe('v-model', function () {
       expect(vm.test).toBe('d')
       setTimeout(function () {
         el.firstChild.value = 'e'
-        // blur should trigger change instantly without debounce
+        // change should trigger change instantly without debounce
+        trigger(el.firstChild, 'change')
         trigger(el.firstChild, 'blur')
         _.nextTick(function () {
           expect(spy.calls.count()).toBe(2)
@@ -764,7 +772,7 @@ describe('v-model', function () {
         '</form>',
       data: {
         ok: true,
-        msg: 'hi'
+        msg: 'foo'
       },
       methods: {
         save: function () {
